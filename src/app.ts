@@ -10,6 +10,7 @@ const whitelist = [
   "http://localhost:5173",
   "http://localhost:5174",
   "http://localhost:8101",
+  "https://rentabilidad360.netlify.app"
 ];
 
 const corsOptions: cors.CorsOptions = {
