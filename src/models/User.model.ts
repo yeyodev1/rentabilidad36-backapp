@@ -5,6 +5,8 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password: string;
+  role: string;
+  workspaceIds: mongoose.Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -21,6 +23,8 @@ const userSchema = new Schema<IUser>(
       trim: true,
     },
     password: { type: String, required: true, minlength: 6 },
+    role: { type: String, enum: ["admin", "operador"], default: "admin" },
+    workspaceIds: [{ type: Schema.Types.ObjectId, ref: "Company" }],
   },
   { timestamps: true }
 );

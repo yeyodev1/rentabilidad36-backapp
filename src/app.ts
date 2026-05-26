@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import http from "http";
+import path from "path";
 import routerApi from "./routes";
 import { globalErrorHandler } from "./middlewares/globalErrorHandler.middleware";
 
@@ -29,6 +30,8 @@ export function createApp() {
 
   app.use(cors(corsOptions));
   app.use(express.json({ limit: "50mb" }));
+
+  app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
   app.get("/", (_req, res) => {
     res.send("Server is alive");

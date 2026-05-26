@@ -3,6 +3,8 @@ interface AnalysisInput {
   monthlyClients: number;
   rawMaterialPercent: number;
   monthlyRent: number;
+  totalFixedCosts: number;
+  variableUnitCost: number;
 }
 
 interface AnalysisResult {
@@ -11,41 +13,48 @@ interface AnalysisResult {
   fixedCost: number;
   ebitda: number;
   profitMargin: number;
-  breakEvenClients: number;
+  breakEvenUnits: number;
+  breakEvenCurrency: number;
   healthStatus: "green" | "yellow" | "red";
   diagnosis: string;
+  financialAlert: {
+    isLosing: boolean;
+    shortfallAmount: number;
+    message: string;
+  };
 }
 
 export function calculateAnalysis(input: AnalysisInput): AnalysisResult {
-  const { avgPrice, monthlyClients, rawMaterialPercent, monthlyRent } = input;
+  const { avgPrice, monthlyClients, rawMaterialPercent, monthlyRent, totalFixedCosts, variableUnitCost } = input;
 
   const monthlySales = avgPrice * monthlyClients;
   const variableCost = monthlySales * (rawMaterialPercent / 100);
-  const fixedCost = monthlyRent;
+  const fixedCost = totalFixedCosts || monthlyRent;
   const ebitda = monthlySales - variableCost - fixedCost;
   const profitMargin = monthlySales > 0 ? (ebitda / monthlySales) * 100 : 0;
 
   const variableCostPerUnit = avgPrice * (rawMaterialPercent / 100);
-  const contributionMargin = avgPrice - variableCostPerUnit;
-  const breakEvenClients =
-    contributionMargin > 0 ? Math.ceil(monthlyRent / contributionMargin) : Infinity;
+  const contributionMargin = avgPrice - (variableUnitCost || variableCostPerUnit);
+  const breakEvenUnits = contributionMargin > 0 ? Math.ceil((totalFixedCosts || monthlyRent) / contributionMargin) : 0;
+  const breakEvenCurrency = breakEvenUnits * avgPrice;
 
   let healthStatus: "green" | "yellow" | "red";
   let diagnosis: string;
 
   if (profitMargin >= 20) {
     healthStatus = "green";
-    diagnosis =
-      "¡EBITDA Saludable detectado! Tu negocio tiene un margen sólido y capacidad de crecimiento.";
+    diagnosis = "Margen saludable";
   } else if (profitMargin >= 0) {
     healthStatus = "yellow";
-    diagnosis =
-      "Riesgo financiero: Tus costos fijos son muy altos para el volumen de ventas proyectado. Revisa tu estructura de costos.";
+    diagnosis = "Margen ajustado";
   } else {
     healthStatus = "red";
-    diagnosis =
-      "Tu negocio no es rentable con los costos actuales. Necesitas aumentar precios, reducir costos o mejorar el volumen de ventas.";
+    diagnosis = "Pérdida detectada";
   }
+
+  const isLosing = monthlySales < breakEvenCurrency;
+  const shortfallAmount = isLosing ? Math.round((breakEvenCurrency - monthlySales) * 100) / 100 : 0;
+  const message = isLosing ? `⚠️ Está perdiendo dinero. Necesita $${shortfallAmount} más para cubrir costos fijos.` : "";
 
   return {
     monthlySales: Math.round(monthlySales * 100) / 100,
@@ -53,9 +62,14 @@ export function calculateAnalysis(input: AnalysisInput): AnalysisResult {
     fixedCost: Math.round(fixedCost * 100) / 100,
     ebitda: Math.round(ebitda * 100) / 100,
     profitMargin: Math.round(profitMargin * 100) / 100,
-    breakEvenClients:
-      breakEvenClients === Infinity ? 0 : Math.round(breakEvenClients),
+    breakEvenUnits: Math.round(breakEvenUnits),
+    breakEvenCurrency: Math.round(breakEvenCurrency * 100) / 100,
     healthStatus,
     diagnosis,
+    financialAlert: {
+      isLosing,
+      shortfallAmount,
+      message,
+    },
   };
 }

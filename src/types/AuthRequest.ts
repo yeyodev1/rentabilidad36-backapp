@@ -4,6 +4,7 @@ export interface JwtPayload {
   userId: string;
   email: string;
   accountType: string;
+  role: string;
 }
 
 export interface AuthRequest extends Request {

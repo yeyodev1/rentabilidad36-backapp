@@ -16,6 +16,8 @@ export async function createAnalysis(req: AuthRequest, res: Response) {
     monthlyClients: Number(monthlyClients),
     rawMaterialPercent: Number(rawMaterialPercent),
     monthlyRent: Number(monthlyRent),
+    totalFixedCosts: Number(monthlyRent),
+    variableUnitCost: 0,
   });
 
   const analysis = new Analysis({

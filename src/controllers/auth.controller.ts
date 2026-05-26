@@ -20,7 +20,7 @@ export async function register(req: Request, res: Response) {
   await user.save();
 
   const token = jwt.sign(
-    { userId: user._id, email: user.email },
+    { userId: user._id, email: user.email, accountType: "admin", role: "admin" },
     process.env.JWT_SECRET as string,
     { expiresIn: "30d" }
   );
@@ -28,7 +28,7 @@ export async function register(req: Request, res: Response) {
   res.status(201).json({
     message: "User registered successfully",
     token,
-    user: { id: user._id, name: user.name, email: user.email },
+    user: { id: user._id, name: user.name, email: user.email, workspaceIds: user.workspaceIds || [] },
   });
 }
 
@@ -53,14 +53,23 @@ export async function login(req: Request, res: Response) {
   }
 
   const token = jwt.sign(
-    { userId: user._id, email: user.email },
+    { userId: user._id, email: user.email, accountType: user.role || "admin", role: user.role || "admin" },
     process.env.JWT_SECRET as string,
     { expiresIn: "30d" }
   );
 
+  const workspaceCount = user.workspaceIds?.length || 0;
+
   res.json({
     message: "Login successful",
     token,
-    user: { id: user._id, name: user.name, email: user.email },
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      workspaceIds: user.workspaceIds || [],
+    },
+    workspaceCount,
+    hasWorkspace: workspaceCount > 0,
   });
 }
