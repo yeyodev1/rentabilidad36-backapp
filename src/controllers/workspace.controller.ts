@@ -4,6 +4,13 @@ import { Company } from "../models/Company.model";
 import { Branch } from "../models/Branch.model";
 import { User } from "../models/User.model";
 
+function resolveCompanyIds(user: any): string[] {
+  const fromWorkspace = (user.workspaceIds || []).map((id: any) => id.toString());
+  const fromCompanyId = user.companyId ? [user.companyId] : [];
+  const union = new Set([...fromWorkspace, ...fromCompanyId]);
+  return Array.from(union);
+}
+
 export async function getWorkspaces(req: AuthRequest, res: Response) {
   try {
     const userId = req.user?.userId;
@@ -12,8 +19,8 @@ export async function getWorkspaces(req: AuthRequest, res: Response) {
     const user = await User.findById(userId);
     if (!user) { res.status(404).json({ message: "User not found" }); return; }
 
-    const ids = user.workspaceIds || [];
-    const companies = await Company.find({ _id: { $in: ids } }).lean();
+    const ids = resolveCompanyIds(user);
+    const companies = await Company.find({ _id: { $in: ids }, userId }).lean();
 
     const workspaces = await Promise.all(
       companies.map(async (c) => {
@@ -51,9 +58,23 @@ export async function getCurrentWorkspace(req: AuthRequest, res: Response) {
     const user = await User.findById(userId);
     if (!user) { res.status(404).json({ message: "User not found" }); return; }
 
-    const ids = user.workspaceIds || [];
+    const ids = resolveCompanyIds(user);
     if (ids.length === 0) {
-      res.json({ workspace: null });
+      const companyByUser = await Company.findOne({ userId }).lean();
+      if (!companyByUser) { res.json({ workspace: null }); return; }
+      const branches = await Branch.find({ companyId: companyByUser._id }).lean();
+      res.json({
+        workspace: {
+          id: companyByUser._id,
+          legalName: companyByUser.legalName,
+          commercialName: companyByUser.commercialName,
+          ruc: companyByUser.ruc,
+          country: companyByUser.country,
+          city: companyByUser.city,
+          onboardingCompleted: companyByUser.onboardingCompleted,
+          branches: branches.map((b) => ({ id: b._id, name: b.name, address: b.address, phone: b.phone, isMain: b.isMain })),
+        },
+      });
       return;
     }
 
