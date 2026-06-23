@@ -1,11 +1,3 @@
-import dotenv from "dotenv";
-dotenv.config();
-
-import express from "express";
-const app = express();
-
-app.get("/", (_req, res) => {
-  res.send("Server is alive");
-});
-
-export default app;
+export default async function handler(req: any, res: any) {
+  res.status(200).send("Server is alive");
+}
