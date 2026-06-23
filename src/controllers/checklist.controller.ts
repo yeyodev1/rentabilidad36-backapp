@@ -7,15 +7,13 @@ import { ChecklistInstance } from "../models/ChecklistInstance.model";
 import { Branch } from "../models/Branch.model";
 import { Company } from "../models/Company.model";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
 
 const upload = multer({
-  dest: path.join(__dirname, "../../uploads/checklists"),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const allowed = [".jpg", ".jpeg", ".png", ".webp"];
-    const ext = path.extname(file.originalname).toLowerCase();
+    const allowed = ["jpg", "jpeg", "png", "webp"];
+    const ext = (file.originalname.split(".").pop() || "").toLowerCase();
     if (allowed.includes(ext)) {
       cb(null, true);
     } else {
@@ -394,9 +392,7 @@ export async function uploadPhotoOCR(req: AuthRequest, res: Response) {
       return;
     }
 
-    const result = await ocrService.processChecklistImage(file.path);
-
-    fs.unlink(file.path, () => {});
+    const result = await ocrService.processChecklistImageBuffer(file.buffer);
 
     if (!result.success) {
       res.status(422).json(result);

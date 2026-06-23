@@ -9,10 +9,14 @@ interface OcrResult {
 }
 
 export async function processChecklistImage(imagePath: string): Promise<OcrResult> {
-  try {
-    const metadata = await sharp(imagePath).metadata();
+  return processChecklistImageBuffer(await sharp(imagePath).toBuffer());
+}
 
-    const stats = await sharp(imagePath)
+export async function processChecklistImageBuffer(imageBuffer: Buffer): Promise<OcrResult> {
+  try {
+    const metadata = await sharp(imageBuffer).metadata();
+
+    const stats = await sharp(imageBuffer)
       .grayscale()
       .raw()
       .toBuffer({ resolveWithObject: true });
