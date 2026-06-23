@@ -1,5 +1,8 @@
+import mongoose from "mongoose";
 import { Equipment } from "../models/Equipment.model";
 import { MaintenanceTicket } from "../models/MaintenanceTicket.model";
+import { Branch } from "../models/Branch.model";
+import { Company } from "../models/Company.model";
 import QRCode from "qrcode";
 
 export function calculateDepreciation(purchaseDate: Date, historicalCost: number, usefulLife: number): number {
@@ -19,21 +22,16 @@ export async function generateQRCode(equipmentId: string): Promise<string> {
   const equipment = await Equipment.findById(equipmentId);
   if (!equipment) throw new Error("Equipment not found");
 
-  const qrData = JSON.stringify({
-    id: equipment._id.toString(),
-    name: equipment.name,
-    brand: equipment.brand,
-    branchId: equipment.branchId.toString(),
-  });
-
-  const qrCode = await QRCode.toDataURL(qrData);
+  const frontendUrl = process.env.FRONTEND_URL || "https://rentabilidad360.netlify.app";
+  const url = `${frontendUrl}/modulo/mantenimiento/${equipment._id.toString()}`;
+  const qrCode = await QRCode.toDataURL(url);
 
   await Equipment.findByIdAndUpdate(equipmentId, { qrCode });
 
   return qrCode;
 }
 
-export async function checkOverdueMaintenance(): Promise<Array<typeof Equipment.prototype>> {
+export async function checkOverdueMaintenance(userId?: string): Promise<Array<typeof Equipment.prototype>> {
   const now = new Date();
 
   const overdue = await Equipment.find({
@@ -61,14 +59,22 @@ export async function checkOverdueMaintenance(): Promise<Array<typeof Equipment.
     });
 
     if (!existingTicket) {
+      let reportedBy = userId;
+      if (!reportedBy) {
+        const branch = await Branch.findById(equipment.branchId);
+        if (branch) {
+          const company = await Company.findOne({ _id: branch.companyId });
+          if (company) reportedBy = company.userId?.toString();
+        }
+      }
       await MaintenanceTicket.create({
         equipmentId: equipment._id,
         branchId: equipment.branchId,
+        reportedBy: reportedBy || undefined,
         title: `Mantenimiento vencido: ${equipment.name}`,
         description: `El equipo ${equipment.name} requiere mantenimiento. Último mantenimiento: ${equipment.lastMaintenanceDate?.toLocaleDateString() || "Ninguno"}. Intervalo: cada ${equipment.maintenanceIntervalDays} días.`,
         priority: "alta",
         status: "abierto",
-        createdAt: new Date(),
       });
     }
   }
@@ -79,18 +85,20 @@ export async function checkOverdueMaintenance(): Promise<Array<typeof Equipment.
 export async function createTicket(data: {
   equipmentId: string;
   branchId: string;
+  reportedBy?: string;
   title: string;
   description: string;
   priority: "baja" | "media" | "alta" | "critica";
   assignedTo?: string;
 }): Promise<typeof MaintenanceTicket.prototype> {
   const ticket = await MaintenanceTicket.create({
-    equipmentId: new (await import("mongoose")).Types.ObjectId(data.equipmentId),
-    branchId: new (await import("mongoose")).Types.ObjectId(data.branchId),
+    equipmentId: new mongoose.Types.ObjectId(data.equipmentId),
+    branchId: new mongoose.Types.ObjectId(data.branchId),
+    reportedBy: data.reportedBy ? new mongoose.Types.ObjectId(data.reportedBy) : undefined,
     title: data.title,
     description: data.description,
     priority: data.priority || "media",
-    assignedTo: data.assignedTo ? new (await import("mongoose")).Types.ObjectId(data.assignedTo) : undefined,
+    assignedTo: data.assignedTo,
     status: "abierto",
   });
 
@@ -103,7 +111,7 @@ export async function sendNotification(
 ): Promise<void> {
   const ticketData = {
     id: ticket._id.toString(),
-    title: ticket.title,
+    title: (ticket as any).title || "Sin título",
     status: ticket.status,
     priority: ticket.priority,
   };

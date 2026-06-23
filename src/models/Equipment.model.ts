@@ -10,7 +10,9 @@ export interface IEquipment extends Document {
   maintenanceIntervalDays: number;
   lastMaintenanceDate?: Date;
   status: "operativo" | "averiado" | "mantenimiento" | "fuera_servicio";
+  location?: string;
   qrCode?: string;
+  imageUrl?: string;
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -31,7 +33,9 @@ const equipmentSchema = new Schema<IEquipment>(
       enum: ["operativo", "averiado", "mantenimiento", "fuera_servicio"],
       default: "operativo",
     },
+    location: { type: String, trim: true },
     qrCode: { type: String },
+    imageUrl: { type: String },
     notes: { type: String, trim: true },
   },
   { timestamps: true }

@@ -8,6 +8,10 @@ import { checklistRouter } from "./checklist.routes";
 import { maintenanceRouter } from "./maintenance.routes";
 import { staffRouter } from "./staff.routes";
 import { workspaceRouter } from "./workspace.routes";
+import { costingRouter } from "./costing.routes";
+import { posRouter } from "./pos.routes";
+import { uploadRouter } from "./upload.routes";
+import { adminRouter } from "./admin.routes";
 
 function routerApi(app: Application) {
   const router = express.Router();
@@ -22,6 +26,10 @@ function routerApi(app: Application) {
   router.use("/maintenance", maintenanceRouter);
   router.use("/staff", staffRouter);
   router.use("/workspace", workspaceRouter);
+  router.use("/costing", costingRouter);
+  router.use("/pos", posRouter);
+  router.use("/upload", uploadRouter);
+  router.use("/admin", adminRouter);
 }
 
 export default routerApi;

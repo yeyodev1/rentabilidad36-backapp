@@ -4,6 +4,7 @@ export interface IMaintenanceTicket extends Document {
   equipmentId: mongoose.Types.ObjectId;
   branchId: mongoose.Types.ObjectId;
   reportedBy: mongoose.Types.ObjectId;
+  title?: string;
   description: string;
   status: "abierto" | "en_progreso" | "resuelto" | "cerrado";
   assignedTo?: string;
@@ -19,6 +20,7 @@ const maintenanceTicketSchema = new Schema<IMaintenanceTicket>(
     equipmentId: { type: Schema.Types.ObjectId, ref: "Equipment", required: true, index: true },
     branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true },
     reportedBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    title: { type: String, trim: true },
     description: { type: String, required: true, trim: true },
     status: {
       type: String,

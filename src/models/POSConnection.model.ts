@@ -1,24 +1,24 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface IPOSConnection extends Document {
-  branchId: mongoose.Types.ObjectId;
+  companyId: mongoose.Types.ObjectId;
   provider: string;
+  status?: string;
   apiKey?: string;
-  webhookUrl?: string;
-  isActive: boolean;
-  lastSyncAt?: Date;
+  storeId?: string;
+  settings?: { apiKey: string; storeId: string };
   createdAt: Date;
   updatedAt: Date;
 }
 
 const posConnectionSchema = new Schema<IPOSConnection>(
   {
-    branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true, unique: true, index: true },
+    companyId: { type: Schema.Types.ObjectId, ref: "Company", required: true, index: true },
     provider: { type: String, required: true, trim: true },
+    status: { type: String, default: "active" },
     apiKey: { type: String },
-    webhookUrl: { type: String, trim: true },
-    isActive: { type: Boolean, default: false },
-    lastSyncAt: { type: Date },
+    storeId: { type: String },
+    settings: { type: Schema.Types.Mixed },
   },
   { timestamps: true }
 );

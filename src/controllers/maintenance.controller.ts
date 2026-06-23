@@ -1,4 +1,5 @@
 import { Response } from "express";
+import mongoose from "mongoose";
 import { AuthRequest } from "../types/AuthRequest";
 import * as maintenanceService from "../services/maintenance.service";
 import { Equipment } from "../models/Equipment.model";
@@ -51,7 +52,7 @@ export async function createEquipment(req: AuthRequest, res: Response) {
       return;
     }
 
-    const { name, brand, purchaseDate, historicalCost, usefulLife, maintenanceIntervalDays, notes } = req.body;
+    const { name, brand, purchaseDate, historicalCost, usefulLife, maintenanceIntervalDays, notes, imageUrl, location } = req.body;
 
     if (!name || !purchaseDate || historicalCost == null || !usefulLife || !maintenanceIntervalDays) {
       res.status(400).json({ message: "name, purchaseDate, historicalCost, usefulLife, and maintenanceIntervalDays are required" });
@@ -67,10 +68,28 @@ export async function createEquipment(req: AuthRequest, res: Response) {
       usefulLife,
       maintenanceIntervalDays,
       notes: notes || "",
+      imageUrl: imageUrl || "",
+      location: location || "",
       status: "operativo",
     });
 
-    res.status(201).json(equipment);
+    await MaintenanceTicket.create({
+      equipmentId: equipment._id,
+      branchId,
+      reportedBy: userId,
+      title: `Registro inicial - ${name}`,
+      description: `Equipo registrado en el sistema. Recibir\u00e1 mantenimiento cada ${maintenanceIntervalDays} d\u00edas.`,
+      priority: "baja",
+      status: "abierto",
+    });
+
+    try {
+      await maintenanceService.generateQRCode(String(equipment._id));
+    } catch { /* QR opcional */ }
+
+    const updated = await Equipment.findById(equipment._id);
+
+    res.status(201).json(updated);
   } catch (error: any) {
     res.status(500).json({ message: "Error creating equipment", error: error.message });
   }
@@ -97,7 +116,7 @@ export async function updateEquipment(req: AuthRequest, res: Response) {
       return;
     }
 
-    const updatable = ["name", "brand", "purchaseDate", "historicalCost", "usefulLife", "maintenanceIntervalDays", "lastMaintenanceDate", "status", "notes"] as const;
+    const updatable = ["name", "brand", "purchaseDate", "historicalCost", "usefulLife", "maintenanceIntervalDays", "lastMaintenanceDate", "status", "notes", "imageUrl", "location"] as const;
     for (const key of updatable) {
       if (req.body[key] !== undefined) {
         (equipment as any)[key] = key === "purchaseDate" || key === "lastMaintenanceDate"
@@ -186,6 +205,11 @@ export async function generateQR(req: AuthRequest, res: Response) {
       return;
     }
 
+    if (equipment.qrCode) {
+      res.json({ qrCode: equipment.qrCode });
+      return;
+    }
+
     const qrDataUrl = await maintenanceService.generateQRCode(String(id));
     res.json({ qrCode: qrDataUrl });
   } catch (error: any) {
@@ -195,14 +219,20 @@ export async function generateQR(req: AuthRequest, res: Response) {
 
 export async function scanQRRedirect(req: AuthRequest, res: Response) {
   try {
-    const { qrCode } = req.query;
-
-    if (!qrCode) {
-      res.status(400).json({ message: "QR code query parameter is required" });
+    const rawCode = req.params.qrCode as string;
+    if (!rawCode) {
+      res.status(400).json({ message: "QR code parameter is required" });
       return;
     }
 
-    const equipment = await Equipment.findOne({ qrCode });
+    const decoded = decodeURIComponent(rawCode);
+    const segments = decoded.split("/");
+    const possibleId = segments[segments.length - 1] || decoded;
+
+    const equipment = /^[a-f0-9]{24}$/i.test(possibleId)
+      ? await Equipment.findById(possibleId)
+      : null;
+
     if (!equipment) {
       res.status(404).json({ message: "Equipment not found for this QR code" });
       return;
@@ -239,8 +269,12 @@ export async function listTickets(req: AuthRequest, res: Response) {
 
     const filter: Record<string, unknown> = { branchId };
     const status = req.query.status as string | undefined;
+    const equipmentId = req.query.equipmentId as string | undefined;
     if (status) {
       filter.status = status;
+    }
+    if (equipmentId) {
+      filter.equipmentId = new mongoose.Types.ObjectId(equipmentId);
     }
 
     const tickets = await MaintenanceTicket.find(filter)
@@ -277,6 +311,7 @@ export async function createTicket(req: AuthRequest, res: Response) {
     const ticket = await maintenanceService.createTicket({
       equipmentId,
       branchId: equipment.branchId.toString(),
+      reportedBy: userId,
       title: `Ticket: ${equipment.name}`,
       description,
       priority: priority || "media",
@@ -342,5 +377,15 @@ export async function updateTicket(req: AuthRequest, res: Response) {
     res.json(ticket);
   } catch (error: any) {
     res.status(500).json({ message: "Error updating ticket", error: error.message });
+  }
+}
+
+export async function checkOverdue(req: AuthRequest, res: Response) {
+  try {
+    const userId = req.user?.userId;
+    const overdue = await maintenanceService.checkOverdueMaintenance(userId);
+    res.json({ checked: true, overdueCount: overdue.length });
+  } catch (error: any) {
+    res.status(500).json({ message: "Error checking overdue maintenance", error: error.message });
   }
 }

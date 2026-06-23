@@ -6,6 +6,9 @@ export interface IUser extends Document {
   email: string;
   password: string;
   role: string;
+  isVerified: boolean;
+  verificationCode: string | null;
+  verificationCodeExpires: Date | null;
   workspaceIds: mongoose.Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
@@ -24,6 +27,9 @@ const userSchema = new Schema<IUser>(
     },
     password: { type: String, required: true, minlength: 6 },
     role: { type: String, enum: ["admin", "operador"], default: "admin" },
+    isVerified: { type: Boolean, default: false },
+    verificationCode: { type: String, default: null },
+    verificationCodeExpires: { type: Date, default: null },
     workspaceIds: [{ type: Schema.Types.ObjectId, ref: "Company" }],
   },
   { timestamps: true }

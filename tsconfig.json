@@ -11,7 +11,10 @@
   },
   "ts-node": {
     "transpileOnly": true,
-    "ignore": ["/node_modules/(?!@api)"]
+    "ignore": ["/node_modules/(?!@api)"],
+    "compilerOptions": {
+      "rootDir": "."
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
